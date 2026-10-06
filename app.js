@@ -2,6 +2,7 @@ const fmt = new Intl.NumberFormat("fr-FR");
 const fmt1 = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 const els = {
+  equivKicker: document.querySelector("#equiv-kicker"),
   commune: document.querySelector("#stat-commune"),
   dep: document.querySelector("#stat-dep"),
   pop: document.querySelector("#stat-pop"),
@@ -18,6 +19,10 @@ const els = {
   results: document.querySelector("#results"),
   tip: document.querySelector("#tip"),
   presets: document.querySelector("#presets"),
+  presetsBlock: document.querySelector(".presets-block"),
+  modeHalf: document.querySelector("#mode-half"),
+  modeCompare: document.querySelector("#mode-compare"),
+  mapHint: document.querySelector("#map-hint"),
   cities: document.querySelector("#cities"),
   departments: document.querySelector("#departments"),
   seedHandle: document.querySelector("#seed-handle"),
@@ -81,13 +86,34 @@ let dragRecalcLngLat = null;
 
 const PRESET_DEFS = [
   { id: "paris", label: "Paris", code: "75056" },
+  { id: "idf", label: "Île-de-France", deps: ["75", "77", "78", "91", "92", "93", "94", "95"] },
+  { id: "lozere", label: "Lozère", deps: ["48"] },
+  { id: "nord", label: "Nord", deps: ["59"] },
   { id: "bretagne", label: "Bretagne", deps: ["22", "29", "35", "56"] },
   { id: "corse", label: "Corse", deps: ["2A", "2B"] },
-  { id: "lozere", label: "Lozère", deps: ["48"] },
-  { id: "idf", label: "Île-de-France", deps: ["75", "77", "78", "91", "92", "93", "94", "95"] },
-  { id: "med", label: "Méditerranée", coast: "med" },
   { id: "atl", label: "Atlantique", coast: "atl" },
-  { id: "half", label: "Moitié du pays", half: true },
+  { id: "med", label: "Méditerranée", coast: "med" },
+  {
+    id: "metros",
+    label: "Grandes métropoles",
+    codes: ["75056", "69123", "13055", "31555", "59350", "33063", "44109", "67482", "34172", "06088"],
+  },
+  {
+    id: "prefectures",
+    label: "Toutes les préfectures",
+    codes: [
+      "01053", "02408", "03190", "04070", "05061", "06088", "07186", "08105", "09122", "10387",
+      "11069", "12202", "13055", "14118", "15014", "16015", "17300", "18033", "19272", "21231",
+      "22278", "23096", "24322", "25056", "26362", "27229", "28085", "29232", "2A004", "2B033",
+      "30189", "31555", "32013", "33063", "34172", "35238", "36044", "37261", "38185", "39300",
+      "40192", "41018", "42218", "43157", "44109", "45234", "46042", "47001", "48095", "49007",
+      "50502", "51454", "52121", "53130", "54395", "55029", "56260", "57463", "58194", "59350",
+      "60057", "61001", "62041", "63113", "64445", "65440", "66136", "67482", "68066", "69123",
+      "70550", "71270", "72181", "73065", "74010", "75056", "76540", "77288", "78646", "79191",
+      "80021", "81004", "82121", "83137", "84007", "85191", "86194", "87085", "88160", "89024",
+      "90010", "91228", "92050", "93008", "94028", "95127",
+    ],
+  },
 ];
 
 const MAJOR_CITY_CODES = new Set(["75056", "13055", "69123"]);
@@ -101,6 +127,7 @@ const CITY_CODES = [
 
 let presets = [];
 let activeId = "idf";
+let appMode = "half";
 let lastSeed = null;
 let cityMarkers = [];
 
@@ -182,29 +209,87 @@ function activePreset() {
   return presets.find((preset) => preset.id === activeId);
 }
 
-function updateReferenceStats() {
+function referencePreset() {
+  if (!index) return null;
+  if (appMode === "half") {
+    return { id: "half", label: "Moitié du pays", pop: index.target, area: null, ids: [], half: true };
+  }
+  return activePreset();
+}
+
+function syncAppModeUi() {
+  els.modeHalf.setAttribute("aria-pressed", appMode === "half" ? "true" : "false");
+  els.modeCompare.setAttribute("aria-pressed", appMode === "compare" ? "true" : "false");
+  els.presetsBlock.classList.toggle("is-half-mode", appMode === "half");
+  document.body.classList.toggle("is-half-mode", appMode === "half");
+}
+
+function syncMapHint() {
+  if (!els.mapHint) return;
+  els.mapHint.hidden = !(index && appMode === "half" && lastSeed === null);
+}
+
+function setAppMode(mode) {
+  if (appMode === mode) return;
+  appMode = mode;
+  if (mode === "compare") activeId = "idf";
+  syncAppModeUi();
+  renderPresets();
+  if (lastSeed !== null) show(lastSeed, { animate: false });
+  else paintZones();
+  syncMapHint();
+}
+
+function complementStats(redZoneIds) {
+  const selected = new Set(redZoneIds);
+  let pop = 0;
+  let area = 0;
+  let count = 0;
+  for (let i = 0; i < index.pop.length; i++) {
+    if (selected.has(i)) continue;
+    count += 1;
+    pop += index.pop[i];
+    area += index.area[i];
+  }
+  return { pop, area, count };
+}
+
+function updateReferenceStats(redZoneIds = undefined) {
   if (!index) return;
-  const preset = activePreset();
+  const preset = referencePreset();
   if (!preset) return;
   els.refName.textContent = preset.label;
-  els.refPop.textContent = fmt.format(preset.pop);
-  els.refShare.textContent = `${fmt1.format((100 * preset.pop) / index.total)} %`;
   if (preset.half) {
-    els.refCount.textContent = "—";
-    els.refArea.textContent = "—";
+    const idsForComp = redZoneIds ?? (lastSeed !== null && current.length ? current : null);
+    if (idsForComp?.length) {
+      const comp = complementStats(idsForComp);
+      els.refPop.textContent = fmt.format(comp.pop);
+      els.refShare.textContent = `${fmt1.format((100 * comp.pop) / index.total)} %`;
+      els.refCount.textContent = fmt.format(comp.count);
+      els.refArea.textContent = `${fmt.format(Math.round(comp.area / 100))} km²`;
+    } else {
+      els.refPop.textContent = fmt.format(preset.pop);
+      els.refShare.textContent = `${fmt1.format((100 * preset.pop) / index.total)} %`;
+      els.refCount.textContent = "—";
+      els.refArea.textContent = "—";
+    }
   } else {
+    els.refPop.textContent = fmt.format(preset.pop);
+    els.refShare.textContent = `${fmt1.format((100 * preset.pop) / index.total)} %`;
     els.refCount.textContent = fmt.format(preset.ids.length);
     els.refArea.textContent = `${fmt.format(Math.round(preset.area / 100))} km²`;
   }
 }
 
 function renderPresets() {
+  const presetsDisabled = appMode === "half";
   els.presets.innerHTML = "";
   for (const item of presets) {
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = item.label;
-    button.setAttribute("aria-pressed", item.id === activeId ? "true" : "false");
+    button.disabled = presetsDisabled;
+    button.setAttribute("aria-pressed", !presetsDisabled && item.id === activeId ? "true" : "false");
     button.addEventListener("click", () => selectPreset(item.id));
     els.presets.appendChild(button);
   }
@@ -218,21 +303,25 @@ function selectPreset(id) {
   else paintZones();
 }
 
+function communeInPreset(def, i) {
+  if (def.code) return index.codes[i] === def.code;
+  if (def.codes) return def.codes.includes(index.codes[i]);
+  if (def.depStartsWith) {
+    const depName = index.depNames[index.dep[i]] || "";
+    return depName.charAt(0).toLocaleUpperCase("fr") === def.depStartsWith.toLocaleUpperCase("fr");
+  }
+  if (def.coast) return coasts[def.coast].includes(index.codes[i]);
+  if (def.deps) return def.deps.includes(index.dep[i]);
+  return false;
+}
+
 function preparePresets() {
   presets = PRESET_DEFS.map((def) => {
-    if (def.half) return { ...def, pop: index.target, area: null, ids: [] };
-    const deps = def.deps ? new Set(def.deps) : null;
-    const coastCodes = def.coast ? new Set(coasts[def.coast]) : null;
     let pop = 0;
     let area = 0;
     const ids = [];
     for (let i = 0; i < index.pop.length; i++) {
-      const inside = def.code
-        ? index.codes[i] === def.code
-        : coastCodes
-          ? coastCodes.has(index.codes[i])
-          : deps.has(index.dep[i]);
-      if (!inside) continue;
+      if (!communeInPreset(def, i)) continue;
       pop += index.pop[i];
       area += index.area[i];
       ids.push(i);
@@ -390,6 +479,7 @@ function cancelZoneAnim() {
 }
 
 function updateEquivalentTitle(seed) {
+  els.equivKicker.hidden = false;
   els.commune.textContent = index.names[seed];
   const dep = index.depNames[index.dep[seed]] || index.dep[seed];
   els.dep.textContent = dep;
@@ -402,6 +492,10 @@ function updateStats(seed, population, area, count) {
   els.share.textContent = `${fmt1.format(share)} %`;
   els.count.textContent = count ? fmt.format(count) : "—";
   els.area.textContent = count ? `${fmt.format(Math.round(area / 100))} km²` : "—";
+  if (appMode === "half") {
+    const redSlice = count > 0 && current.length ? current.slice(0, count) : null;
+    updateReferenceStats(redSlice);
+  }
 }
 
 function communeMapCoord(i) {
@@ -481,11 +575,13 @@ function bindSeedHandle() {
 function show(seed, { animate = true } = {}) {
   cancelZoneAnim();
   lastSeed = seed;
+  syncMapHint();
   els.tip.hidden = true;
   if (!seedDrag) placeSeedHandle();
 
-  const blocked = new Set(activePreset().ids || []);
-  const ids = attachIslandsInDisk(seed, grow(seed, activePreset().pop, blocked), blocked);
+  const ref = referencePreset();
+  const blocked = new Set(ref?.ids || []);
+  const ids = attachIslandsInDisk(seed, grow(seed, ref.pop, blocked), blocked);
   current = ids;
 
   const cumPop = new Float64Array(ids.length);
@@ -712,8 +808,8 @@ function paintZones(redCount = null) {
   };
   const redLimit = redCount == null ? current.length : redCount;
   draw(current, "#c23b33", redLimit);
-  const preset = activePreset();
-  if (preset) draw(preset.ids, "#3a7ab8");
+  const preset = referencePreset();
+  if (preset?.ids?.length) draw(preset.ids, "#3a7ab8");
   const source = map.getSource("zone");
   source.setCoordinates(zoneCorners());
   source.play();
@@ -835,6 +931,10 @@ function paintMap(geojson, departements, france) {
   });
 }
 
+els.modeHalf.addEventListener("click", () => setAppMode("half"));
+els.modeCompare.addEventListener("click", () => setAppMode("compare"));
+syncAppModeUi();
+
 els.cities.addEventListener("change", () => setCitiesVisible(els.cities.checked));
 els.departments.addEventListener("change", () => setDepartmentsVisible(els.departments.checked));
 
@@ -922,6 +1022,7 @@ map.on("load", async () => {
     if (!frameFrance()) paintZones();
     loader.set(100);
     loader.hide();
+    syncMapHint();
     els.status.textContent = "";
   } catch (error) {
     els.loadOverlay.hidden = true;

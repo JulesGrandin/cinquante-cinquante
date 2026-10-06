@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À population égale</title>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
-  <link rel="stylesheet" href="style.css?v=load1">
+  <link rel="stylesheet" href="style.css?v=mode10">
 </head>
 <body>
   <div id="load-overlay" role="status" aria-live="polite" aria-busy="true" aria-label="Chargement">
@@ -35,6 +35,9 @@
       </label>
     </div>
     <button type="button" id="seed-handle" hidden aria-label="Déplacer le point de départ"></button>
+    <p id="map-hint" class="map-hint" hidden>
+      <span class="map-hint-card">Cliquez sur la carte<br>pour découper le pays<br>en deux moitiés égales</span>
+    </p>
   </div>
   <div id="tip" hidden></div>
   <aside id="panel">
@@ -42,6 +45,10 @@
     <h1>À population égale</h1>
     <p class="lead">Choisissez un territoire de référence, puis cliquez sur une commune pour afficher un territoire à population équivalente.</p>
     <div class="presets-block">
+      <div class="mode-switch" role="group" aria-label="Mode d'affichage">
+        <button type="button" id="mode-half" aria-pressed="true">Moitié du pays</button>
+        <button type="button" id="mode-compare" aria-pressed="false">Comparaison</button>
+      </div>
       <div id="presets" role="group" aria-label="Comparer à"></div>
     </div>
     <div class="search-wrap">
@@ -75,6 +82,7 @@
       </dl>
     </section>
     <section class="stats-section" aria-label="Population équivalente">
+      <p id="equiv-kicker" class="stats-kicker" hidden>Vous avez cliqué sur…</p>
       <p class="stats-title">
         <span class="swatch swatch-zone" aria-hidden="true"></span>
         <span class="stats-place"><span id="stat-commune">—</span><span class="stats-dep" id="stat-dep"></span></span>
@@ -102,6 +110,6 @@
   </aside>
   <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/proj4@2.11.0/dist/proj4.js"></script>
-  <script src="app.js?v=load1"></script>
+  <script src="app.js?v=mode13"></script>
 </body>
 </html>
