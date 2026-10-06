@@ -316,6 +316,90 @@ h1 {
   border-color: var(--line);
 }
 
+.dep-picker-wrap {
+  position: relative;
+  margin-top: 4px;
+}
+
+#dep-picker-btn {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--ink);
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  font-size: 11.5px;
+  line-height: 1.15;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+#dep-picker-btn:hover:not(:disabled) {
+  border-color: #c8b8a8;
+}
+
+#dep-picker-btn[aria-pressed="true"] {
+  background: #2a6494;
+  border-color: #2a6494;
+  color: white;
+}
+
+#dep-picker-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+#dep-picker-btn:disabled:hover {
+  border-color: var(--line);
+}
+
+.presets-block.is-half-mode .dep-picker-wrap {
+  opacity: 0.55;
+}
+
+#dep-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 7;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  max-height: min(240px, 42vh);
+  overflow-y: auto;
+  background: white;
+  box-shadow: 0 10px 28px rgba(28, 25, 21, 0.12);
+}
+
+#dep-list button {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: white;
+  padding: 8px 12px;
+  font: inherit;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+#dep-list li:last-child button {
+  border-bottom: 0;
+}
+
+#dep-list button:hover,
+#dep-list button:focus {
+  background: #fbf6f1;
+  color: var(--red-deep);
+}
+
 .legend {
   display: flex;
   flex-wrap: wrap;
@@ -440,7 +524,9 @@ body.is-half-mode .stats-title .swatch-ref {
 .search-wrap {
   position: relative;
   z-index: 6;
-  margin-top: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
 }
 
 .search {
@@ -514,6 +600,11 @@ body.is-half-mode .stats-title .swatch-ref {
 
 .stats-section {
   margin-top: 14px;
+}
+
+.stats-section:first-of-type {
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
 }
 
 .stats-section + .stats-section {

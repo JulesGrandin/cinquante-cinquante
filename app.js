@@ -19,10 +19,16 @@ const els = {
   results: document.querySelector("#results"),
   tip: document.querySelector("#tip"),
   presets: document.querySelector("#presets"),
+  depPickerBtn: document.querySelector("#dep-picker-btn"),
+  depList: document.querySelector("#dep-list"),
+  depPickerWrap: document.querySelector(".dep-picker-wrap"),
   presetsBlock: document.querySelector(".presets-block"),
   modeHalf: document.querySelector("#mode-half"),
   modeCompare: document.querySelector("#mode-compare"),
   mapHint: document.querySelector("#map-hint"),
+  legendRefLabel: document.querySelector("#legend-ref-label"),
+  legendZoneLabel: document.querySelector("#legend-zone-label"),
+  panelLead: document.querySelector("#panel-lead"),
   cities: document.querySelector("#cities"),
   departments: document.querySelector("#departments"),
   seedHandle: document.querySelector("#seed-handle"),
@@ -116,6 +122,10 @@ const PRESET_DEFS = [
   },
 ];
 
+const LEAD_HALF = "Cliquez sur la carte pour découper le pays en deux moitiés égales";
+const LEAD_COMPARE =
+  "Choisissez un territoire de référence, puis cliquez sur une commune pour afficher un territoire à population équivalente. Vous pouvez déplacer le point.";
+
 const MAJOR_CITY_CODES = new Set(["75056", "13055", "69123"]);
 
 const CITY_CODES = [
@@ -127,6 +137,8 @@ const CITY_CODES = [
 
 let presets = [];
 let activeId = "idf";
+let customDepCode = null;
+let depPresetsByCode = null;
 let appMode = "half";
 let lastSeed = null;
 let cityMarkers = [];
@@ -209,12 +221,87 @@ function activePreset() {
   return presets.find((preset) => preset.id === activeId);
 }
 
+function depPreset(code) {
+  if (!depPresetsByCode) return null;
+  return depPresetsByCode.get(code) || null;
+}
+
 function referencePreset() {
   if (!index) return null;
   if (appMode === "half") {
-    return { id: "half", label: "Moitié du pays", pop: index.target, area: null, ids: [], half: true };
+    return { id: "half", label: "La moitié du pays", pop: index.target, area: null, ids: [], half: true };
   }
+  if (customDepCode) return depPreset(customDepCode);
   return activePreset();
+}
+
+function closeDepList() {
+  els.depList.hidden = true;
+  els.depPickerBtn.setAttribute("aria-expanded", "false");
+}
+
+function openDepList() {
+  els.depList.hidden = false;
+  els.depPickerBtn.setAttribute("aria-expanded", "true");
+  els.results.hidden = true;
+}
+
+function syncDepPickerUi() {
+  const disabled = appMode === "half";
+  els.depPickerBtn.disabled = disabled;
+  if (customDepCode && index?.depNames[customDepCode]) {
+    els.depPickerBtn.textContent = index.depNames[customDepCode];
+    els.depPickerBtn.setAttribute("aria-pressed", "true");
+  } else {
+    els.depPickerBtn.textContent = "Choisir un département";
+    els.depPickerBtn.setAttribute("aria-pressed", "false");
+  }
+}
+
+function buildDepPresets() {
+  depPresetsByCode = new Map();
+  for (const code of Object.keys(index.depNames)) {
+    let pop = 0;
+    let area = 0;
+    const ids = [];
+    for (let i = 0; i < index.pop.length; i++) {
+      if (index.dep[i] !== code) continue;
+      pop += index.pop[i];
+      area += index.area[i];
+      ids.push(i);
+    }
+    depPresetsByCode.set(code, {
+      id: `dep-${code}`,
+      label: index.depNames[code] || code,
+      pop,
+      area,
+      ids,
+    });
+  }
+}
+
+function populateDepList() {
+  els.depList.innerHTML = "";
+  const codes = Object.keys(index.depNames).sort((a, b) =>
+    (index.depNames[a] || a).localeCompare(index.depNames[b] || b, "fr"));
+  for (const code of codes) {
+    const li = document.createElement("li");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.setAttribute("role", "option");
+    button.textContent = index.depNames[code] || code;
+    button.addEventListener("click", () => selectCustomDep(code));
+    li.appendChild(button);
+    els.depList.appendChild(li);
+  }
+}
+
+function selectCustomDep(code) {
+  customDepCode = code;
+  closeDepList();
+  renderPresets();
+  if (lastSeed !== null) show(lastSeed, { animate: false });
+  else paintZones();
 }
 
 function syncAppModeUi() {
@@ -222,6 +309,20 @@ function syncAppModeUi() {
   els.modeCompare.setAttribute("aria-pressed", appMode === "compare" ? "true" : "false");
   els.presetsBlock.classList.toggle("is-half-mode", appMode === "half");
   document.body.classList.toggle("is-half-mode", appMode === "half");
+  els.panelLead.textContent = appMode === "half" ? LEAD_HALF : LEAD_COMPARE;
+  if (appMode === "half") {
+    els.legendRefLabel.textContent = "Première moitié";
+    els.legendZoneLabel.textContent = "Seconde moitié";
+  } else {
+    els.legendRefLabel.textContent = "Référence";
+    els.legendZoneLabel.textContent = "Équivalent";
+  }
+  if (!els.equivKicker.hidden) {
+    els.equivKicker.textContent = appMode === "half"
+      ? "La deuxième moitié centrée sur…"
+      : "Vous avez cliqué sur…";
+  }
+  if (appMode === "half" && index) updateReferenceStats();
 }
 
 function syncMapHint() {
@@ -232,7 +333,11 @@ function syncMapHint() {
 function setAppMode(mode) {
   if (appMode === mode) return;
   appMode = mode;
-  if (mode === "compare") activeId = "idf";
+  if (mode === "compare") {
+    activeId = "idf";
+    customDepCode = null;
+  }
+  closeDepList();
   syncAppModeUi();
   renderPresets();
   if (lastSeed !== null) show(lastSeed, { animate: false });
@@ -289,14 +394,17 @@ function renderPresets() {
     button.type = "button";
     button.textContent = item.label;
     button.disabled = presetsDisabled;
-    button.setAttribute("aria-pressed", !presetsDisabled && item.id === activeId ? "true" : "false");
+    button.setAttribute("aria-pressed", !presetsDisabled && !customDepCode && item.id === activeId ? "true" : "false");
     button.addEventListener("click", () => selectPreset(item.id));
     els.presets.appendChild(button);
   }
+  syncDepPickerUi();
   updateReferenceStats();
 }
 
 function selectPreset(id) {
+  customDepCode = null;
+  closeDepList();
   activeId = id;
   renderPresets();
   if (lastSeed !== null) show(lastSeed, { animate: false });
@@ -328,6 +436,8 @@ function preparePresets() {
     }
     return { ...def, pop, area, ids };
   });
+  buildDepPresets();
+  populateDepList();
   renderPresets();
 }
 
@@ -480,6 +590,9 @@ function cancelZoneAnim() {
 
 function updateEquivalentTitle(seed) {
   els.equivKicker.hidden = false;
+  els.equivKicker.textContent = appMode === "half"
+    ? "La deuxième moitié centrée sur…"
+    : "Vous avez cliqué sur…";
   els.commune.textContent = index.names[seed];
   const dep = index.depNames[index.dep[seed]] || index.dep[seed];
   els.dep.textContent = dep;
@@ -934,6 +1047,20 @@ function paintMap(geojson, departements, france) {
 els.modeHalf.addEventListener("click", () => setAppMode("half"));
 els.modeCompare.addEventListener("click", () => setAppMode("compare"));
 syncAppModeUi();
+
+els.depPickerBtn.addEventListener("click", () => {
+  if (els.depPickerBtn.disabled) return;
+  if (els.depList.hidden) openDepList();
+  else closeDepList();
+});
+
+document.addEventListener("click", (event) => {
+  if (els.depList.hidden) return;
+  if (els.depPickerWrap.contains(event.target)) return;
+  closeDepList();
+});
+
+syncDepPickerUi();
 
 els.cities.addEventListener("change", () => setCitiesVisible(els.cities.checked));
 els.departments.addEventListener("change", () => setDepartmentsVisible(els.departments.checked));

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À population égale</title>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
-  <link rel="stylesheet" href="style.css?v=mode10">
+  <link rel="stylesheet" href="style.css?v=pub1">
 </head>
 <body>
   <div id="load-overlay" role="status" aria-live="polite" aria-busy="true" aria-label="Chargement">
@@ -20,8 +20,8 @@
     <div id="map"></div>
     <div class="map-hud" aria-label="Affichage carte">
       <ul class="legend">
-        <li><span class="swatch swatch-ref"></span> Référence</li>
-        <li><span class="swatch swatch-zone"></span> Équivalent</li>
+        <li><span class="swatch swatch-ref"></span> <span id="legend-ref-label">Référence</span></li>
+        <li><span class="swatch swatch-zone"></span> <span id="legend-zone-label">Équivalent</span></li>
       </ul>
       <label class="toggle">
         <input id="cities" type="checkbox">
@@ -43,13 +43,17 @@
   <aside id="panel">
     <p class="kicker">France métropolitaine</p>
     <h1>À population égale</h1>
-    <p class="lead">Choisissez un territoire de référence, puis cliquez sur une commune pour afficher un territoire à population équivalente.</p>
+    <p id="panel-lead" class="lead">Cliquez sur la carte pour découper le pays en deux moitiés égales</p>
     <div class="presets-block">
       <div class="mode-switch" role="group" aria-label="Mode d'affichage">
-        <button type="button" id="mode-half" aria-pressed="true">Moitié du pays</button>
+        <button type="button" id="mode-half" aria-pressed="true">Deux moitiés</button>
         <button type="button" id="mode-compare" aria-pressed="false">Comparaison</button>
       </div>
       <div id="presets" role="group" aria-label="Comparer à"></div>
+      <div class="dep-picker-wrap">
+        <button type="button" id="dep-picker-btn" aria-haspopup="listbox" aria-expanded="false" disabled>Choisir un département</button>
+        <ul id="dep-list" role="listbox" aria-label="Départements" hidden></ul>
+      </div>
     </div>
     <div class="search-wrap">
       <label class="search">
@@ -110,6 +114,6 @@
   </aside>
   <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/proj4@2.11.0/dist/proj4.js"></script>
-  <script src="app.js?v=mode13"></script>
+  <script src="app.js?v=pub1"></script>
 </body>
 </html>
