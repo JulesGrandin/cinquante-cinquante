@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>À population égale</title>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+  <link rel="stylesheet" href="style.css?v=drag3">
+</head>
+<body>
+  <div id="map-shell">
+    <div id="map"></div>
+    <div class="map-hud" aria-label="Affichage carte">
+      <ul class="legend">
+        <li><span class="swatch swatch-ref"></span> Référence</li>
+        <li><span class="swatch swatch-zone"></span> Équivalent</li>
+      </ul>
+      <label class="toggle">
+        <input id="cities" type="checkbox">
+        <span class="toggle-ui" aria-hidden="true"></span>
+        <span>Villes</span>
+      </label>
+      <label class="toggle">
+        <input id="departments" type="checkbox" checked>
+        <span class="toggle-ui" aria-hidden="true"></span>
+        <span>Départements</span>
+      </label>
+    </div>
+    <button type="button" id="seed-handle" hidden aria-label="Déplacer le point de départ"></button>
+  </div>
+  <div id="tip" hidden></div>
+  <aside id="panel">
+    <p class="kicker">France métropolitaine</p>
+    <h1>À population égale</h1>
+    <p class="lead">Choisissez un territoire de référence, puis cliquez sur une commune pour afficher un territoire à population équivalente.</p>
+    <div class="presets-block">
+      <div id="presets" role="group" aria-label="Comparer à"></div>
+    </div>
+    <div class="search-wrap">
+      <label class="search">
+        <input id="query" type="search" placeholder="Calculer à partir d'une commune" aria-label="Calculer à partir d'une commune" autocomplete="off">
+      </label>
+      <ul id="results" hidden></ul>
+    </div>
+    <section class="stats-section" aria-label="Territoire de référence">
+      <p class="stats-title">
+        <span class="swatch swatch-ref" aria-hidden="true"></span>
+        <span class="stats-place" id="ref-name">—</span>
+      </p>
+      <dl class="stats-grid">
+        <div>
+          <dt>Population</dt>
+          <dd id="ref-pop">—</dd>
+        </div>
+        <div>
+          <dt>Part de la population</dt>
+          <dd id="ref-share">—</dd>
+        </div>
+        <div>
+          <dt>Communes</dt>
+          <dd id="ref-count">—</dd>
+        </div>
+        <div>
+          <dt>Superficie</dt>
+          <dd id="ref-area">—</dd>
+        </div>
+      </dl>
+    </section>
+    <section class="stats-section" aria-label="Population équivalente">
+      <p class="stats-title">
+        <span class="swatch swatch-zone" aria-hidden="true"></span>
+        <span class="stats-place"><span id="stat-commune">—</span><span class="stats-dep" id="stat-dep"></span></span>
+      </p>
+      <dl class="stats-grid">
+        <div>
+          <dt>Population</dt>
+          <dd id="stat-pop">—</dd>
+        </div>
+        <div>
+          <dt>Part de la population</dt>
+          <dd id="stat-share">—</dd>
+        </div>
+        <div>
+          <dt>Communes</dt>
+          <dd id="stat-count">—</dd>
+        </div>
+        <div>
+          <dt>Superficie</dt>
+          <dd id="stat-area">—</dd>
+        </div>
+      </dl>
+    </section>
+    <p id="status">Chargement de la carte…</p>
+  </aside>
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/proj4@2.11.0/dist/proj4.js"></script>
+  <script src="app.js?v=drag3"></script>
+</body>
+</html>
