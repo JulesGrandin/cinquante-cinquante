@@ -24,6 +24,61 @@ body {
   background: var(--map);
 }
 
+#load-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: start center;
+  padding-top: min(16vh, 108px);
+  background: rgba(230, 223, 212, 0.78);
+  backdrop-filter: blur(5px);
+  transition: opacity 0.45s ease, visibility 0.45s ease;
+}
+
+#load-overlay.is-done {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+#load-overlay[hidden] {
+  display: none;
+}
+
+.load-card {
+  width: min(320px, calc(100vw - 40px));
+  padding: 16px 18px 14px;
+  border: 1px solid rgba(28, 25, 21, 0.1);
+  border-radius: 12px;
+  background: var(--paper);
+  box-shadow: 0 12px 36px rgba(28, 25, 21, 0.12);
+}
+
+.load-text {
+  margin: 0 0 12px;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+}
+
+.load-bar {
+  height: 7px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.load-bar-fill {
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--red-deep), var(--red));
+  transition: width 0.28s ease-out;
+}
+
 #map-shell {
   position: relative;
   flex: 1 1 auto;

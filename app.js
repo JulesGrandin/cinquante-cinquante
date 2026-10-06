@@ -21,7 +21,59 @@ const els = {
   cities: document.querySelector("#cities"),
   departments: document.querySelector("#departments"),
   seedHandle: document.querySelector("#seed-handle"),
+  loadOverlay: document.querySelector("#load-overlay"),
+  loadBar: document.querySelector("#load-bar"),
+  loadBarFill: document.querySelector("#load-bar-fill"),
 };
+
+const loader = {
+  progress: 0,
+  set(value) {
+    this.progress = Math.min(100, Math.max(this.progress, value));
+    const pct = Math.round(this.progress);
+    els.loadBarFill.style.width = `${pct}%`;
+    els.loadBar.setAttribute("aria-valuenow", String(pct));
+  },
+  hide() {
+    els.loadOverlay.classList.add("is-done");
+    els.loadOverlay.setAttribute("aria-busy", "false");
+    window.setTimeout(() => {
+      els.loadOverlay.hidden = true;
+    }, 480);
+  },
+};
+
+loader.set(6);
+
+async function fetchJsonWithProgress(url, onRatio) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`${url} (${res.status})`);
+  const total = Number(res.headers.get("Content-Length")) || 0;
+  if (!total || !res.body?.getReader) {
+    onRatio(0.15);
+    const data = await res.json();
+    onRatio(1);
+    return data;
+  }
+  const reader = res.body.getReader();
+  let loaded = 0;
+  const chunks = [];
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    loaded += value.byteLength;
+    chunks.push(value);
+    onRatio(loaded / total);
+  }
+  onRatio(1);
+  const merged = new Uint8Array(loaded);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return JSON.parse(new TextDecoder().decode(merged));
+}
 
 let seedDrag = null;
 let dragRecalcRaf = 0;
@@ -824,27 +876,55 @@ els.query.addEventListener("input", () => {
 });
 
 map.on("load", async () => {
+  const loadParts = { index: 0, coast: 0, dep: 0, france: 0, communes: 0 };
+  const loadWeights = { index: 0.04, coast: 0.02, dep: 0.06, france: 0.06, communes: 0.72 };
+  const loadBase = 12;
+  const loadSpan = 83;
+
+  function refreshLoadProgress() {
+    let sum = 0;
+    for (const key of Object.keys(loadWeights)) sum += loadWeights[key] * loadParts[key];
+    loader.set(loadBase + sum * loadSpan);
+  }
+
+  loader.set(10);
+
   try {
-    const [indexRes, geoRes, coastRes, depRes, franceRes] = await Promise.all([
-      fetch("data/index.json"),
-      fetch("data/communes.geojson?v=l93"),
-      fetch("data/coasts.json"),
-      fetch("data/departements.geojson?v=ne10m"),
-      fetch("data/france.geojson?v=silhouette"),
+    const [indexData, coastData, geojson, departements, france] = await Promise.all([
+      fetchJsonWithProgress("data/index.json", (r) => {
+        loadParts.index = r;
+        refreshLoadProgress();
+      }),
+      fetchJsonWithProgress("data/coasts.json", (r) => {
+        loadParts.coast = r;
+        refreshLoadProgress();
+      }),
+      fetchJsonWithProgress("data/communes.geojson?v=l93", (r) => {
+        loadParts.communes = r;
+        refreshLoadProgress();
+      }),
+      fetchJsonWithProgress("data/departements.geojson?v=ne10m", (r) => {
+        loadParts.dep = r;
+        refreshLoadProgress();
+      }),
+      fetchJsonWithProgress("data/france.geojson?v=silhouette", (r) => {
+        loadParts.france = r;
+        refreshLoadProgress();
+      }),
     ]);
-    if (!indexRes.ok || !geoRes.ok || !coastRes.ok || !depRes.ok || !franceRes.ok) throw new Error("fichiers de données introuvables");
-    index = await indexRes.json();
-    coasts = await coastRes.json();
-    const geojson = await geoRes.json();
-    const departements = await depRes.json();
-    const france = await franceRes.json();
+    index = indexData;
+    coasts = coastData;
+    loader.set(96);
     normNames = index.names.map(fold);
     preparePresets();
     paintMap(geojson, departements, france);
     placeCities();
     if (!frameFrance()) paintZones();
+    loader.set(100);
+    loader.hide();
     els.status.textContent = "";
   } catch (error) {
+    els.loadOverlay.hidden = true;
     els.status.textContent = `Impossible de charger les données (${error.message}).`;
   }
 });

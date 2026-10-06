@@ -5,9 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À population égale</title>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
-  <link rel="stylesheet" href="style.css?v=drag3">
+  <link rel="stylesheet" href="style.css?v=load1">
 </head>
 <body>
+  <div id="load-overlay" role="status" aria-live="polite" aria-busy="true" aria-label="Chargement">
+    <div class="load-card">
+      <p class="load-text">Ça carto-charge…</p>
+      <div id="load-bar" class="load-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div id="load-bar-fill" class="load-bar-fill"></div>
+      </div>
+    </div>
+  </div>
   <div id="map-shell">
     <div id="map"></div>
     <div class="map-hud" aria-label="Affichage carte">
@@ -90,10 +98,10 @@
         </div>
       </dl>
     </section>
-    <p id="status">Chargement de la carte…</p>
+    <p id="status"></p>
   </aside>
   <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/proj4@2.11.0/dist/proj4.js"></script>
-  <script src="app.js?v=drag3"></script>
+  <script src="app.js?v=load1"></script>
 </body>
 </html>
