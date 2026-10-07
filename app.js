@@ -128,6 +128,25 @@ const PRESET_DEFS = [
 const MOBILE_COMPARE_PRESET_IDS = ["paris", "idf", "lozere", "bretagne", "atl", "med"];
 const MOBILE_MQL = window.matchMedia("(max-width: 580px)");
 
+/**
+ * DROM : pas de communes sur la carte (métropole seule) ; pop / surface / nb communes
+ * pour le volet stats et la cible de croissance. Pop. municipale Insee sauf Mayotte (RP 2017).
+ * Superficie en hectares (comme index.area).
+ */
+const OVERSEAS_DEP_DATA = {
+  "971": { name: "Guadeloupe", pop: 384_160, area: 162_800, communes: 32 },
+  "972": { name: "Martinique", pop: 360_630, area: 112_800, communes: 34 },
+  "973": { name: "Guyane", pop: 293_996, area: 8_384_600, communes: 22 },
+  "974": { name: "La Réunion", pop: 889_679, area: 251_200, communes: 24 },
+  "976": { name: "Mayotte", pop: 256_518, area: 37_600, communes: 17 },
+};
+
+function mergedDepNames() {
+  const out = { ...(index?.depNames || {}) };
+  for (const [code, data] of Object.entries(OVERSEAS_DEP_DATA)) out[code] = data.name;
+  return out;
+}
+
 function isMobileLayout() {
   return MOBILE_MQL.matches;
 }
@@ -280,8 +299,9 @@ function openDepList() {
 function syncDepPickerUi() {
   const disabled = appMode === "half";
   els.depPickerBtn.disabled = disabled;
-  if (customDepCode && index?.depNames[customDepCode]) {
-    els.depPickerBtn.textContent = index.depNames[customDepCode];
+  const depNames = mergedDepNames();
+  if (customDepCode && depNames[customDepCode]) {
+    els.depPickerBtn.textContent = depNames[customDepCode];
     els.depPickerBtn.setAttribute("aria-pressed", "true");
   } else {
     els.depPickerBtn.textContent = "Choisir un département";
@@ -291,7 +311,20 @@ function syncDepPickerUi() {
 
 function buildDepPresets() {
   depPresetsByCode = new Map();
-  for (const code of Object.keys(index.depNames)) {
+  const depNames = mergedDepNames();
+  for (const code of Object.keys(depNames)) {
+    const overseas = OVERSEAS_DEP_DATA[code];
+    if (overseas) {
+      depPresetsByCode.set(code, {
+        id: `dep-${code}`,
+        label: overseas.name,
+        pop: overseas.pop,
+        area: overseas.area,
+        ids: [],
+        refCommuneCount: overseas.communes,
+      });
+      continue;
+    }
     let pop = 0;
     let area = 0;
     const ids = [];
@@ -303,7 +336,7 @@ function buildDepPresets() {
     }
     depPresetsByCode.set(code, {
       id: `dep-${code}`,
-      label: index.depNames[code] || code,
+      label: depNames[code] || code,
       pop,
       area,
       ids,
@@ -313,14 +346,15 @@ function buildDepPresets() {
 
 function populateDepList() {
   els.depList.innerHTML = "";
-  const codes = Object.keys(index.depNames).sort((a, b) =>
-    (index.depNames[a] || a).localeCompare(index.depNames[b] || b, "fr"));
+  const depNames = mergedDepNames();
+  const codes = Object.keys(depNames).sort((a, b) =>
+    (depNames[a] || a).localeCompare(depNames[b] || b, "fr"));
   for (const code of codes) {
     const li = document.createElement("li");
     const button = document.createElement("button");
     button.type = "button";
     button.setAttribute("role", "option");
-    button.textContent = index.depNames[code] || code;
+    button.textContent = depNames[code] || code;
     button.addEventListener("click", () => selectCustomDep(code));
     li.appendChild(button);
     els.depList.appendChild(li);
@@ -412,7 +446,8 @@ function updateReferenceStats(redZoneIds = undefined) {
   } else {
     els.refPop.textContent = fmt.format(preset.pop);
     els.refShare.textContent = `${fmt1.format((100 * preset.pop) / index.total)} %`;
-    els.refCount.textContent = fmt.format(preset.ids.length);
+    const refCommunes = preset.refCommuneCount ?? preset.ids.length;
+    els.refCount.textContent = fmt.format(refCommunes);
     els.refArea.textContent = `${fmt.format(Math.round(preset.area / 100))} km²`;
   }
 }

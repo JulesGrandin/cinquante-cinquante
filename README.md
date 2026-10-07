@@ -2,6 +2,8 @@
 
 Carte interactive de la France métropolitaine : choisir un territoire de référence, puis une commune de départ pour afficher une zone à population équivalente.
 
+**Démo en ligne : [julesgrandin.github.io/cinquante-cinquante](https://julesgrandin.github.io/cinquante-cinquante/)**
+
 Données : populations municipales Insee 2023, Admin Express COG 2026 (IGN).
 
 ## Développement local
