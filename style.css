@@ -699,16 +699,77 @@ body.is-half-mode .stats-title .swatch-ref {
 }
 
 #tip {
-  position: absolute;
-  z-index: 3;
+  position: fixed;
+  z-index: 50;
   pointer-events: none;
-  padding: 6px 8px;
-  border-radius: 8px;
-  background: rgba(28, 25, 21, 0.9);
-  color: white;
+  transform: translate(-50%, calc(-100% - 10px));
+}
+
+#tip[hidden] {
+  display: none;
+}
+
+.tip-card {
+  position: relative;
+  min-width: 120px;
+  max-width: min(240px, calc(100vw - 24px));
+  padding: 8px 12px 10px;
+  border: 1px solid rgba(28, 25, 21, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 252, 247, 0.97);
+  box-shadow: 0 8px 24px rgba(28, 25, 21, 0.14);
+  text-align: center;
+}
+
+.tip-card::before,
+.tip-card::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+}
+
+.tip-card::before {
+  bottom: -8px;
+  border-top: 8px solid rgba(28, 25, 21, 0.12);
+}
+
+.tip-card::after {
+  bottom: -7px;
+  border-top: 7px solid rgba(255, 252, 247, 0.97);
+}
+
+.tip-name {
+  margin: 0;
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.tip-dep {
+  margin: 2px 0 0;
   font-family: "Avenir Next", "Segoe UI", sans-serif;
-  font-size: 13px;
-  transform: translate(12px, 12px);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--muted);
+}
+
+.tip-pop {
+  margin: 5px 0 0;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0.01em;
+  color: var(--ink);
 }
 
 @media (max-height: 820px) {
@@ -724,15 +785,154 @@ body.is-half-mode .stats-title .swatch-ref {
 
 }
 
-@media (max-width: 720px) {
-  #panel {
-    flex-basis: min(220px, 42vw);
-    width: min(220px, 42vw);
-    padding: 14px;
+@media (max-width: 580px) {
+  html,
+  body {
+    height: 100%;
+    height: 100dvh;
   }
 
-  h1 { font-size: 26px; }
+  body {
+    flex-direction: column;
+  }
 
-  .stats-grid dd { font-size: 16px; }
+  #panel {
+    order: -1;
+    flex: 0 1 auto;
+    width: 100%;
+    max-width: none;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    padding: 8px 10px 8px;
+    padding-top: max(8px, env(safe-area-inset-top));
+    border-right: none;
+    border-bottom: 1px solid rgba(28, 25, 21, 0.1);
+  }
 
+  #panel .stats-section {
+    display: none;
+  }
+
+  #map-shell {
+    flex: 1 1 0;
+    width: 100%;
+    min-width: 0;
+    min-height: min(300px, 54dvh);
+    height: auto;
+  }
+
+  .kicker {
+    margin-bottom: 2px;
+    font-size: 10px;
+  }
+
+  h1 {
+    font-size: 22px;
+    line-height: 1.02;
+  }
+
+  .lead {
+    margin-top: 4px;
+    font-size: 11.5px;
+    line-height: 1.28;
+  }
+
+  .presets-block {
+    margin-top: 6px;
+  }
+
+  .mode-switch {
+    margin-bottom: 4px;
+    border-radius: 8px;
+  }
+
+  .mode-switch button {
+    padding: 4px 6px;
+    font-size: 11px;
+    line-height: 1.15;
+  }
+
+  #presets {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 3px;
+  }
+
+  #presets button {
+    padding: 4px 3px;
+    border-radius: 6px;
+    font-size: 9.5px;
+    line-height: 1.1;
+  }
+
+  .dep-picker-wrap {
+    margin-top: 3px;
+  }
+
+  #dep-picker-btn {
+    padding: 4px 6px;
+    border-radius: 6px;
+    font-size: 10px;
+    line-height: 1.15;
+  }
+
+  .search-wrap {
+    margin-top: 10px;
+    padding-top: 10px;
+  }
+
+  .search input {
+    font-size: 16px;
+    padding: 8px 10px;
+  }
+
+  #dep-list {
+    max-height: min(200px, 36dvh);
+  }
+
+  #results {
+    max-height: min(200px, 36dvh);
+  }
+
+  .map-hud {
+    top: 8px;
+    right: 8px;
+    left: auto;
+    max-width: calc(100% - 16px);
+    padding: 8px 10px;
+    gap: 0;
+  }
+
+  .map-hud .toggle {
+    display: none;
+  }
+
+  .map-hud .legend {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+  }
+
+  .legend {
+    font-size: 11px;
+  }
+
+  .map-hint {
+    padding: 16px;
+  }
+
+  .map-hint-card {
+    font-size: 14px;
+    padding: 12px 14px;
+  }
+
+  #seed-handle {
+    width: 20px;
+    height: 20px;
+    border-width: 2.5px;
+  }
+
+  #load-overlay {
+    padding-top: max(12vh, env(safe-area-inset-top, 12px));
+  }
 }

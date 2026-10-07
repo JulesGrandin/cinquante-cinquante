@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>À population égale</title>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
-  <link rel="stylesheet" href="style.css?v=pub1">
+  <link rel="stylesheet" href="style.css?v=pub10">
 </head>
 <body>
   <div id="load-overlay" role="status" aria-live="polite" aria-busy="true" aria-label="Chargement">
@@ -39,9 +39,14 @@
       <span class="map-hint-card">Cliquez sur la carte<br>pour découper le pays<br>en deux moitiés égales</span>
     </p>
   </div>
-  <div id="tip" hidden></div>
+  <div id="tip" hidden>
+    <div class="tip-card" role="tooltip">
+      <p class="tip-name"></p>
+      <p class="tip-dep"></p>
+      <p class="tip-pop"></p>
+    </div>
+  </div>
   <aside id="panel">
-    <p class="kicker">France métropolitaine</p>
     <h1>À population égale</h1>
     <p id="panel-lead" class="lead">Cliquez sur la carte pour découper le pays en deux moitiés égales</p>
     <div class="presets-block">
@@ -114,6 +119,6 @@
   </aside>
   <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/proj4@2.11.0/dist/proj4.js"></script>
-  <script src="app.js?v=pub1"></script>
+  <script src="app.js?v=pub10"></script>
 </body>
 </html>

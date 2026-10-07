@@ -18,6 +18,9 @@ const els = {
   query: document.querySelector("#query"),
   results: document.querySelector("#results"),
   tip: document.querySelector("#tip"),
+  tipName: document.querySelector(".tip-name"),
+  tipDep: document.querySelector(".tip-dep"),
+  tipPop: document.querySelector(".tip-pop"),
   presets: document.querySelector("#presets"),
   depPickerBtn: document.querySelector("#dep-picker-btn"),
   depList: document.querySelector("#dep-list"),
@@ -122,6 +125,23 @@ const PRESET_DEFS = [
   },
 ];
 
+const MOBILE_COMPARE_PRESET_IDS = ["paris", "idf", "lozere", "bretagne", "atl", "med"];
+const MOBILE_MQL = window.matchMedia("(max-width: 580px)");
+
+function isMobileLayout() {
+  return MOBILE_MQL.matches;
+}
+
+function presetsToShow() {
+  if (!isMobileLayout()) return presets;
+  return presets.filter((item) => MOBILE_COMPARE_PRESET_IDS.includes(item.id));
+}
+
+function syncMobilePresetSelection() {
+  if (!isMobileLayout() || customDepCode) return;
+  if (!MOBILE_COMPARE_PRESET_IDS.includes(activeId)) activeId = "idf";
+}
+
 const LEAD_HALF = "Cliquez sur la carte pour découper le pays en deux moitiés égales";
 const LEAD_COMPARE =
   "Choisissez un territoire de référence, puis cliquez sur une commune pour afficher un territoire à population équivalente. Vous pouvez déplacer le point.";
@@ -192,7 +212,8 @@ function frameFrance() {
 new ResizeObserver(() => frameFrance()).observe(map.getContainer());
 
 map.addControl(new maplibregl.AttributionControl({
-  customAttribution: "Lambert-93 · IGN Admin Express COG 2026 · Insee, populations municipales 2023",
+  customAttribution:
+    'Projection Lambert 93 (<a href="https://observablehq.com/@ericmauviere/le-fond-de-carte-simplifie-des-communes-2021-avec-droms-rapp" target="_blank" rel="noopener noreferrer">merci Eric Mauvière</a>), Communes 2026 IGN, Population 2023 Insee',
 }), "bottom-right");
 map.scrollZoom.disable();
 map.boxZoom.disable();
@@ -215,6 +236,16 @@ function fold(value) {
 function placeLabel(i) {
   const dep = index.depNames[index.dep[i]] || index.dep[i];
   return `${index.names[i]} · ${dep}`;
+}
+
+function placeCommuneTip(i, clientX, clientY) {
+  const dep = index.depNames[index.dep[i]] || index.dep[i];
+  els.tipName.textContent = index.names[i];
+  els.tipDep.textContent = `(${dep})`;
+  els.tipPop.textContent = `${fmt.format(index.pop[i])} hab.`;
+  els.tip.style.left = `${clientX}px`;
+  els.tip.style.top = `${clientY}px`;
+  els.tip.hidden = false;
 }
 
 function activePreset() {
@@ -300,7 +331,7 @@ function selectCustomDep(code) {
   customDepCode = code;
   closeDepList();
   renderPresets();
-  if (lastSeed !== null) show(lastSeed, { animate: false });
+  if (lastSeed !== null) show(lastSeed);
   else paintZones();
 }
 
@@ -388,8 +419,9 @@ function updateReferenceStats(redZoneIds = undefined) {
 
 function renderPresets() {
   const presetsDisabled = appMode === "half";
+  syncMobilePresetSelection();
   els.presets.innerHTML = "";
-  for (const item of presets) {
+  for (const item of presetsToShow()) {
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = item.label;
@@ -407,7 +439,7 @@ function selectPreset(id) {
   closeDepList();
   activeId = id;
   renderPresets();
-  if (lastSeed !== null) show(lastSeed, { animate: false });
+  if (lastSeed !== null) show(lastSeed);
   else paintZones();
 }
 
@@ -588,6 +620,38 @@ function cancelZoneAnim() {
   zoneAnimToken += 1;
 }
 
+function statsForZoneIds(idList) {
+  let population = 0;
+  let area = 0;
+  for (const i of idList) {
+    population += index.pop[i];
+    area += index.area[i];
+  }
+  return { population, area, count: idList.length };
+}
+
+function zoneIdsToRemove(fromIds, toSet) {
+  const list = [];
+  for (let i = fromIds.length - 1; i >= 0; i--) {
+    if (!toSet.has(fromIds[i])) list.push(fromIds[i]);
+  }
+  return list;
+}
+
+function zoneIdsAtProgress(fromIds, toIds, t) {
+  if (t <= 0) return fromIds;
+  if (t >= 1) return toIds;
+  const toSet = new Set(toIds);
+  const fromSet = new Set(fromIds);
+  const toAdd = toIds.filter((i) => !fromSet.has(i));
+  const toRemove = zoneIdsToRemove(fromIds, toSet);
+  const removeCount = Math.floor(t * toRemove.length);
+  const addCount = Math.floor(t * toAdd.length);
+  const removing = new Set(toRemove.slice(0, removeCount));
+  const kept = fromIds.filter((i) => !removing.has(i));
+  return kept.concat(toAdd.slice(0, addCount));
+}
+
 function updateEquivalentTitle(seed) {
   els.equivKicker.hidden = false;
   els.equivKicker.textContent = appMode === "half"
@@ -598,7 +662,7 @@ function updateEquivalentTitle(seed) {
   els.dep.textContent = dep;
 }
 
-function updateStats(seed, population, area, count) {
+function updateStats(seed, population, area, count, redZoneIds = null) {
   const share = (100 * population) / index.total;
   updateEquivalentTitle(seed);
   els.pop.textContent = fmt.format(population);
@@ -606,8 +670,9 @@ function updateStats(seed, population, area, count) {
   els.count.textContent = count ? fmt.format(count) : "—";
   els.area.textContent = count ? `${fmt.format(Math.round(area / 100))} km²` : "—";
   if (appMode === "half") {
-    const redSlice = count > 0 && current.length ? current.slice(0, count) : null;
-    updateReferenceStats(redSlice);
+    let redSlice = redZoneIds;
+    if (!redSlice && count > 0 && current.length) redSlice = current.slice(0, count);
+    updateReferenceStats(redSlice?.length ? redSlice : null);
   }
 }
 
@@ -687,6 +752,8 @@ function bindSeedHandle() {
 
 function show(seed, { animate = true } = {}) {
   cancelZoneAnim();
+  const prevSeed = lastSeed;
+  const fromIds = prevSeed === seed && current.length ? current.slice() : [];
   lastSeed = seed;
   syncMapHint();
   els.tip.hidden = true;
@@ -716,6 +783,27 @@ function show(seed, { animate = true } = {}) {
   }
 
   const token = zoneAnimToken;
+
+  if (fromIds.length) {
+    const start = performance.now();
+    const step = (now) => {
+      if (token !== zoneAnimToken) return;
+      const t = Math.min(1, (now - start) / ZONE_ANIM_MS);
+      const eased = 1 - (1 - t) ** 3;
+      const frameIds = zoneIdsAtProgress(fromIds, ids, eased);
+      paintZones(frameIds);
+      const frameStats = statsForZoneIds(frameIds);
+      updateStats(seed, frameStats.population, frameStats.area, frameStats.count, frameIds);
+      if (t < 1) requestAnimationFrame(step);
+      else {
+        updateStats(seed, population, area, ids.length);
+        if (!seedDrag) placeSeedHandle();
+      }
+    };
+    requestAnimationFrame(step);
+    return;
+  }
+
   updateStats(seed, 0, 0, 0);
   paintZones(0);
 
@@ -885,7 +973,7 @@ function zoneCorners() {
   ];
 }
 
-function paintZones(redCount = null) {
+function paintZones(redDraw = null) {
   if (!zonePaths || !map.getSource("zone")) return;
   const cssW = map.transform.width;
   const cssH = map.transform.height;
@@ -919,8 +1007,15 @@ function paintZones(redCount = null) {
       ctx.fill(path, "evenodd");
     }
   };
-  const redLimit = redCount == null ? current.length : redCount;
-  draw(current, "#c23b33", redLimit);
+  let redIds = current;
+  let redLimit = current.length;
+  if (Array.isArray(redDraw)) {
+    redIds = redDraw;
+    redLimit = redDraw.length;
+  } else if (redDraw != null) {
+    redLimit = redDraw;
+  }
+  draw(redIds, "#c23b33", redLimit);
   const preset = referencePreset();
   if (preset?.ids?.length) draw(preset.ids, "#3a7ab8");
   const source = map.getSource("zone");
@@ -1031,11 +1126,8 @@ function paintMap(geojson, departements, france) {
     }
     map.getCanvas().style.cursor = "pointer";
     paintHover(i);
-    els.tip.hidden = false;
     const rect = map.getCanvas().getBoundingClientRect();
-    els.tip.style.left = `${rect.left + event.point.x}px`;
-    els.tip.style.top = `${rect.top + event.point.y}px`;
-    els.tip.textContent = `${placeLabel(i)} · ${fmt.format(index.pop[i])} hab.`;
+    placeCommuneTip(i, rect.left + event.point.x, rect.top + event.point.y);
   });
 
   map.on("mouseout", () => {
@@ -1047,6 +1139,14 @@ function paintMap(geojson, departements, france) {
 els.modeHalf.addEventListener("click", () => setAppMode("half"));
 els.modeCompare.addEventListener("click", () => setAppMode("compare"));
 syncAppModeUi();
+
+MOBILE_MQL.addEventListener("change", () => {
+  if (!presets.length) return;
+  syncMobilePresetSelection();
+  renderPresets();
+  if (lastSeed !== null) show(lastSeed, { animate: false });
+  else paintZones();
+});
 
 els.depPickerBtn.addEventListener("click", () => {
   if (els.depPickerBtn.disabled) return;
